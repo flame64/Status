@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Server & DNS Checker</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #0b0f0f;
+            color: #00ff00;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 450px;
+            margin: 50px auto;
+            background: linear-gradient(135deg, #092d09, #0f3b0f);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0px 0px 15px rgba(0, 255, 0, 0.6);
+            border: 2px solid #00ff00;
+        }
+
+        h2 {
+            color: #00ff00;
+            text-shadow: 0px 0px 15px #00ff00;
+        }
+
+        select, input {
+            width: 90%;
+            padding: 12px;
+            margin-top: 10px;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            font-size: 16px;
+            background: black;
+            color: #00ff00;
+            text-align: center;
+            outline: none;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 12px 15px;
+            background: #00ff00;
+            border: none;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+            font-size: 16px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            box-shadow: 0px 0px 15px #00ff00;
+        }
+
+        button:hover {
+            background: #00cc00;
+            box-shadow: 0px 0px 20px #00ff00;
+        }
+
+        .status-box {
+            margin-top: 20px;
+            padding: 15px;
+            background: black;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px #00ff00;
+            border: 1px solid #00ff00;
+        }
+
+        .online {
+            color: #00ff00;
+            text-shadow: 0px 0px 10px #00ff00;
+        }
+
+        .offline {
+            color: #ff3333;
+            text-shadow: 0px 0px 10px #ff3333;
+        }
+
+        .logo {
+            max-width: 100px;
+            margin-top: 10px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px #00ff00;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Server & DNS Checker</h2>
+
+        <select id="statusType" onchange="toggleStatusType()">
+            <option value="minecraft">Minecraft Server Status</option>
+            <option value="subdomain">Subdomain Information</option>
+            <option value="dns">DNS Information</option>
+        </select>
+
+        <div id="minecraftStatus">
+            <input type="text" id="mcServerIP" placeholder="Enter Minecraft Server IP">
+            <button onclick="getMinecraftStatus()">Check Server</button>
+        </div>
+
+        <div id="subdomainLookup" style="display: none;">
+            <input type="text" id="domainName" placeholder="Enter Domain Name">
+            <button onclick="getSubdomains()">Check Subdomains</button>
+        </div>
+
+        <div id="dnsInfo" style="display: none;">
+            <input type="text" id="dnsURL" placeholder="Enter Domain for DNS info">
+            <button onclick="getDNSInfo()">Get DNS Info</button>
+        </div>
+
+        <div id="statusResult" class="status-box" style="display: none;">
+            <p><strong>Status:</strong> <span id="serverStatus"></span></p>
+            <p><strong>Details:</strong> <span id="statusDetails"></span></p>
+            <p><strong>Subdomains:</strong> <span id="subdomainsDetails"></span></p>
+            <p><strong>Real IP:</strong> <span id="realIp"></span></p>
+            <p><strong>DNS Records:</strong> <span id="dnsRecords"></span></p>
+            <img id="mcLogo" class="logo" />
+        </div>
+    </div>
+
+    <script>
+        function toggleStatusType() {
+            let statusType = document.getElementById("statusType").value;
+            document.getElementById("minecraftStatus").style.display = (statusType === "minecraft") ? "block" : "none";
+            document.getElementById("subdomainLookup").style.display = (statusType === "subdomain") ? "block" : "none";
+            document.getElementById("dnsInfo").style.display = (statusType === "dns") ? "block" : "none";
+            document.getElementById("statusResult").style.display = "none";
+        }
+
+        function getMinecraftStatus() {
+            let serverIP = document.getElementById("mcServerIP").value.trim();
+            if (!serverIP) {
+                alert("Please enter a Minecraft server IP.");
+                return;
+            }
+
+            fetch(`https://api.mcsrvstat.us/2/${serverIP}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("serverStatus").innerHTML = data.online ? "Online ✅" : "Offline ❌";
+                    document.getElementById("realIp").innerText = `Real IP: ${data.ip || "Not available"}`;
+                    document.getElementById("statusDetails").innerText = data.online ? `Version: ${data.version} | Players: ${data.players.online}/${data.players.max}` : "Server is offline.";
+                    document.getElementById("mcLogo").src = data.icon ? `data:image/png;base64,${data.icon}` : '';
+                    document.getElementById("mcLogo").style.display = data.icon ? "block" : "none";
+                    document.getElementById("statusResult").style.display = "block";
+                })
+                .catch(() => {
+                    alert("Error fetching Minecraft server status.");
+                });
+        }
+
+        function getSubdomains() {
+            let domain = document.getElementById("domainName").value.trim();
+            if (!domain) {
+                alert("Please enter a domain name.");
+                return;
+            }
+
+            fetch(`https://crt.sh/?q=%25.${domain}&output=json`)
+                .then(response => response.json())
+                .then(data => {
+                    let subdomains = [...new Set(data.map(item => item.name_value))];
+                    document.getElementById("serverStatus").innerHTML = "Subdomains Found";
+                    document.getElementById("subdomainsDetails").innerText = subdomains.join(", ");
+                    document.getElementById("statusResult").style.display = "block";
+                })
+                .catch(() => {
+                    alert("Error fetching subdomains.");
+                });
+        }
+
+        function getDNSInfo() {
+            let domain = document.getElementById("dnsURL").value.trim();
+            if (!domain) {
+                alert("Please enter a domain.");
+                return;
+            }
+
+            fetch(`https://dns.google/resolve?name=${domain}`)
+                .then(response => response.json())
+                .then(data => {
+                    let ipAddresses = data.Answer?.filter(record => record.type === 1).map(record => record.data).join(", ") || "No IP found";
+                    document.getElementById("dnsRecords").innerText = `DNS Records: ${ipAddresses}`;
+                    document.getElementById("statusResult").style.display = "block";
+                })
+                .catch(() => {
+                    alert("Error fetching DNS info.");
+                });
+        }
+    </script>
+
+</body>
+</html>
